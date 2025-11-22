@@ -25,11 +25,21 @@ export default class NotificationPositionExtension extends Extension {
         
         // Store original values
         this._originalBannerAlignment = Main.messageTray.bannerAlignment;
-        this._originalBannerY = Main.messageTray._bannerBin.y;
-        this._originalBannerYAlign = Main.messageTray._bannerBin.y_align;
+        this._originalBannerBin = {
+            x: Main.messageTray._bannerBin.x,
+            y: Main.messageTray._bannerBin.y,
+            x_align: Main.messageTray._bannerBin.x_align,
+            y_align: Main.messageTray._bannerBin.y_align,
+            width: Main.messageTray._bannerBin.width
+        };
         
         // Connect to settings changes
         this._settingsChangedId = this._settings.connect('changed', () => {
+            this._updatePosition();
+        });
+        
+        // Connect to monitor changes
+        this._monitorsChangedId = Main.layoutManager.connect('monitors-changed', () => {
             this._updatePosition();
         });
         
@@ -44,21 +54,52 @@ export default class NotificationPositionExtension extends Extension {
             this._settingsChangedId = null;
         }
         
+        // Disconnect monitor changes
+        if (this._monitorsChangedId) {
+            Main.layoutManager.disconnect(this._monitorsChangedId);
+            this._monitorsChangedId = null;
+        }
+        
         // Restore original values
+        const banner = Main.messageTray._bannerBin;
         Main.messageTray.bannerAlignment = this._originalBannerAlignment;
-        Main.messageTray._bannerBin.y = this._originalBannerY;
-        Main.messageTray._bannerBin.y_align = this._originalBannerYAlign;
+        banner.x = this._originalBannerBin.x;
+        banner.y = this._originalBannerBin.y;
+        banner.x_align = this._originalBannerBin.x_align;
+        banner.y_align = this._originalBannerBin.y_align;
+        banner.set_width(this._originalBannerBin.width);
         
         this._settings = null;
     }
 
     _updatePosition() {
-        const horizontalPosition = this._settings.get_string('horizontal-position');
-        const verticalPosition = this._settings.get_string('vertical-position');
+        const position = this._settings.get_string('position');
         const monitorIndex = this._settings.get_int('monitor-index');
         
+        // Get the selected monitor
+        const monitors = Main.layoutManager.monitors;
+        const monitor = monitors[monitorIndex] || Main.layoutManager.primaryMonitor;
+        
+        const banner = Main.messageTray._bannerBin;
+        const margin = 10;
+        
+        // Parse position into horizontal and vertical components
+        let horizontalAlign, verticalPos, isStretched;
+        
+        if (position.includes('stretch')) {
+            isStretched = true;
+            horizontalAlign = 'center';
+            verticalPos = position.includes('top') ? 'top' : 'bottom';
+        } else {
+            isStretched = false;
+            if (position.includes('left')) horizontalAlign = 'left';
+            else if (position.includes('right')) horizontalAlign = 'right';
+            else horizontalAlign = 'center';
+            verticalPos = position.includes('top') ? 'top' : 'bottom';
+        }
+        
         // Set horizontal alignment
-        switch (horizontalPosition) {
+        switch (horizontalAlign) {
             case 'left':
                 Main.messageTray.bannerAlignment = Clutter.ActorAlign.START;
                 break;
@@ -71,15 +112,30 @@ export default class NotificationPositionExtension extends Extension {
         }
         
         // Set vertical position
-        const banner = Main.messageTray._bannerBin;
-        const monitor = Main.layoutManager.monitors[monitorIndex] || Main.layoutManager.primaryMonitor;
-        
-        if (verticalPosition === 'top') {
+        if (verticalPos === 'top') {
             banner.y_align = Clutter.ActorAlign.START;
-            banner.y = monitor.y + 10; // 10px from top
+            banner.y = monitor.y + margin;
         } else {
             banner.y_align = Clutter.ActorAlign.END;
-            banner.y = monitor.y + monitor.height - 10; // 10px from bottom
+            banner.y = monitor.y + monitor.height - margin;
+        }
+        
+        // Handle stretched width
+        if (isStretched) {
+            banner.set_width(monitor.width - (margin * 2));
+            banner.x = monitor.x + margin;
+        } else {
+            banner.set_width(-1); // Natural width
+            // For non-primary monitors, adjust x position
+            if (monitorIndex > 0) {
+                if (horizontalAlign === 'left') {
+                    banner.x = monitor.x + margin;
+                } else if (horizontalAlign === 'right') {
+                    banner.x = monitor.x + monitor.width - margin;
+                } else {
+                    banner.x = monitor.x + (monitor.width / 2);
+                }
+            }
         }
     }
 }

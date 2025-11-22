@@ -1,6 +1,8 @@
 /* prefs.js */
 import Adw from 'gi://Adw';
 import Gtk from 'gi://Gtk';
+import Gdk from 'gi://Gdk';
+import Gio from 'gi://Gio';
 import {ExtensionPreferences} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
 export default class NotificationPositionPreferences extends ExtensionPreferences {
@@ -18,48 +20,42 @@ export default class NotificationPositionPreferences extends ExtensionPreference
         });
         page.add(positionGroup);
         
-        // Horizontal position
-        const horizontalRow = new Adw.ComboRow({
-            title: 'Horizontal Position',
-            subtitle: 'Left, center, or right alignment'
+        // Position selector
+        const positionRow = new Adw.ComboRow({
+            title: 'Position',
+            subtitle: 'Select notification location'
         });
         
-        const horizontalModel = new Gtk.StringList();
-        horizontalModel.append('Left');
-        horizontalModel.append('Center');
-        horizontalModel.append('Right');
-        horizontalRow.model = horizontalModel;
+        const positionModel = new Gtk.StringList();
+        positionModel.append('Top Left');
+        positionModel.append('Top Center');
+        positionModel.append('Top Right');
+        positionModel.append('Bottom Left');
+        positionModel.append('Bottom Center');
+        positionModel.append('Bottom Right');
+        positionModel.append('Top Stretched');
+        positionModel.append('Bottom Stretched');
+        positionRow.model = positionModel;
         
-        const hPositions = ['left', 'center', 'right'];
-        const currentH = settings.get_string('horizontal-position');
-        horizontalRow.selected = hPositions.indexOf(currentH);
+        const positions = [
+            'top-left',
+            'top-center', 
+            'top-right',
+            'bottom-left',
+            'bottom-center',
+            'bottom-right',
+            'top-stretch',
+            'bottom-stretch'
+        ];
         
-        horizontalRow.connect('notify::selected', (widget) => {
-            settings.set_string('horizontal-position', hPositions[widget.selected]);
+        const currentPosition = settings.get_string('position');
+        positionRow.selected = positions.indexOf(currentPosition);
+        
+        positionRow.connect('notify::selected', (widget) => {
+            settings.set_string('position', positions[widget.selected]);
         });
         
-        positionGroup.add(horizontalRow);
-        
-        // Vertical position
-        const verticalRow = new Adw.ComboRow({
-            title: 'Vertical Position',
-            subtitle: 'Top or bottom of screen'
-        });
-        
-        const verticalModel = new Gtk.StringList();
-        verticalModel.append('Top');
-        verticalModel.append('Bottom');
-        verticalRow.model = verticalModel;
-        
-        const vPositions = ['top', 'bottom'];
-        const currentV = settings.get_string('vertical-position');
-        verticalRow.selected = vPositions.indexOf(currentV);
-        
-        verticalRow.connect('notify::selected', (widget) => {
-            settings.set_string('vertical-position', vPositions[widget.selected]);
-        });
-        
-        positionGroup.add(verticalRow);
+        positionGroup.add(positionRow);
         
         // Monitor selection
         const monitorGroup = new Adw.PreferencesGroup({
@@ -68,25 +64,88 @@ export default class NotificationPositionPreferences extends ExtensionPreference
         });
         page.add(monitorGroup);
         
+        // Get actual monitor count
+        const display = Gdk.Display.get_default();
+        const monitorCount = display ? display.get_monitors().get_n_items() : 1;
+        
         const monitorRow = new Adw.ComboRow({
             title: 'Display Monitor',
-            subtitle: '0 = Primary monitor, 1+ = Secondary monitors'
+            subtitle: `${monitorCount} monitor(s) detected`
         });
         
         const monitorModel = new Gtk.StringList();
-        monitorModel.append('Primary Monitor (0)');
-        for (let i = 1; i <= 5; i++) {
-            monitorModel.append(`Monitor ${i}`);
+        for (let i = 0; i < monitorCount; i++) {
+            if (i === 0) {
+                monitorModel.append(`Monitor ${i} (Primary)`);
+            } else {
+                monitorModel.append(`Monitor ${i}`);
+            }
         }
         monitorRow.model = monitorModel;
         
         const currentMonitor = settings.get_int('monitor-index');
-        monitorRow.selected = currentMonitor;
+        monitorRow.selected = Math.min(currentMonitor, monitorCount - 1);
         
         monitorRow.connect('notify::selected', (widget) => {
             settings.set_int('monitor-index', widget.selected);
         });
         
         monitorGroup.add(monitorRow);
+        
+        // Test notification group
+        const testGroup = new Adw.PreferencesGroup({
+            title: 'Test',
+            description: 'Send a test notification to verify position'
+        });
+        page.add(testGroup);
+        
+        const testRow = new Adw.ActionRow({
+            title: 'Send Test Notification',
+            subtitle: 'Click to see a sample notification with current settings'
+        });
+        
+        const testButton = new Gtk.Button({
+            label: 'Send Test',
+            valign: Gtk.Align.CENTER,
+            css_classes: ['suggested-action']
+        });
+        
+        testButton.connect('clicked', () => {
+            try {
+                // Get current position and monitor for display in notification
+                const position = settings.get_string('position');
+                const monitorIndex = settings.get_int('monitor-index');
+                
+                const positionNames = {
+                    'top-left': 'Top Left',
+                    'top-center': 'Top Center',
+                    'top-right': 'Top Right',
+                    'bottom-left': 'Bottom Left',
+                    'bottom-center': 'Bottom Center',
+                    'bottom-right': 'Bottom Right',
+                    'top-stretch': 'Top Stretched',
+                    'bottom-stretch': 'Bottom Stretched'
+                };
+                
+                const positionName = positionNames[position] || position;
+                const monitorName = monitorIndex === 0 ? 'Primary' : `Monitor ${monitorIndex}`;
+                
+                // Use notify-send command which triggers GNOME Shell notifications
+                const proc = Gio.Subprocess.new(
+                    ['notify-send', 
+                     'Test Notification', 
+                     `Position: ${positionName}\nMonitor: ${monitorName}`,
+                     '--urgency=normal',
+                     '--app-name=Notification Position Plus'],
+                    Gio.SubprocessFlags.NONE
+                );
+            } catch (e) {
+                console.error('Error sending test notification:', e);
+            }
+        });
+        
+        testRow.add_suffix(testButton);
+        testRow.activatable_widget = testButton;
+        testGroup.add(testRow);
     }
 }
