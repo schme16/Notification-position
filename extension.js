@@ -38,11 +38,6 @@ export default class NotificationPositionExtension extends Extension {
             this._updatePosition();
         });
         
-        // Connect to monitor changes
-        this._monitorsChangedId = Main.layoutManager.connect('monitors-changed', () => {
-            this._updatePosition();
-        });
-        
         // Apply initial position
         this._updatePosition();
     }
@@ -52,12 +47,6 @@ export default class NotificationPositionExtension extends Extension {
         if (this._settingsChangedId) {
             this._settings.disconnect(this._settingsChangedId);
             this._settingsChangedId = null;
-        }
-        
-        // Disconnect monitor changes
-        if (this._monitorsChangedId) {
-            Main.layoutManager.disconnect(this._monitorsChangedId);
-            this._monitorsChangedId = null;
         }
         
         // Restore original values
@@ -74,11 +63,9 @@ export default class NotificationPositionExtension extends Extension {
 
     _updatePosition() {
         const position = this._settings.get_string('position');
-        const monitorIndex = this._settings.get_int('monitor-index');
         
-        // Get the selected monitor
-        const monitors = Main.layoutManager.monitors;
-        const monitor = monitors[monitorIndex] || Main.layoutManager.primaryMonitor;
+        // Get the primary monitor
+        const monitor = Main.layoutManager.primaryMonitor;
         
         const banner = Main.messageTray._bannerBin;
         const margin = 10;
@@ -126,16 +113,6 @@ export default class NotificationPositionExtension extends Extension {
             banner.x = monitor.x + margin;
         } else {
             banner.set_width(-1); // Natural width
-            // For non-primary monitors, adjust x position
-            if (monitorIndex > 0) {
-                if (horizontalAlign === 'left') {
-                    banner.x = monitor.x + margin;
-                } else if (horizontalAlign === 'right') {
-                    banner.x = monitor.x + monitor.width - margin;
-                } else {
-                    banner.x = monitor.x + (monitor.width / 2);
-                }
-            }
         }
     }
 }

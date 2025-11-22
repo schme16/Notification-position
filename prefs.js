@@ -1,7 +1,6 @@
 /* prefs.js */
 import Adw from 'gi://Adw';
 import Gtk from 'gi://Gtk';
-import Gdk from 'gi://Gdk';
 import Gio from 'gi://Gio';
 import {ExtensionPreferences} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
@@ -57,41 +56,6 @@ export default class NotificationPositionPreferences extends ExtensionPreference
         
         positionGroup.add(positionRow);
         
-        // Monitor selection
-        const monitorGroup = new Adw.PreferencesGroup({
-            title: 'Monitor',
-            description: 'Select which monitor displays notifications'
-        });
-        page.add(monitorGroup);
-        
-        // Get actual monitor count
-        const display = Gdk.Display.get_default();
-        const monitorCount = display ? display.get_monitors().get_n_items() : 1;
-        
-        const monitorRow = new Adw.ComboRow({
-            title: 'Display Monitor',
-            subtitle: `${monitorCount} monitor(s) detected`
-        });
-        
-        const monitorModel = new Gtk.StringList();
-        for (let i = 0; i < monitorCount; i++) {
-            if (i === 0) {
-                monitorModel.append(`Monitor ${i} (Primary)`);
-            } else {
-                monitorModel.append(`Monitor ${i}`);
-            }
-        }
-        monitorRow.model = monitorModel;
-        
-        const currentMonitor = settings.get_int('monitor-index');
-        monitorRow.selected = Math.min(currentMonitor, monitorCount - 1);
-        
-        monitorRow.connect('notify::selected', (widget) => {
-            settings.set_int('monitor-index', widget.selected);
-        });
-        
-        monitorGroup.add(monitorRow);
-        
         // Test notification group
         const testGroup = new Adw.PreferencesGroup({
             title: 'Test',
@@ -112,9 +76,8 @@ export default class NotificationPositionPreferences extends ExtensionPreference
         
         testButton.connect('clicked', () => {
             try {
-                // Get current position and monitor for display in notification
+                // Get current position for display in notification
                 const position = settings.get_string('position');
-                const monitorIndex = settings.get_int('monitor-index');
                 
                 const positionNames = {
                     'top-left': 'Top Left',
@@ -128,13 +91,12 @@ export default class NotificationPositionPreferences extends ExtensionPreference
                 };
                 
                 const positionName = positionNames[position] || position;
-                const monitorName = monitorIndex === 0 ? 'Primary' : `Monitor ${monitorIndex}`;
                 
                 // Use notify-send command which triggers GNOME Shell notifications
                 const proc = Gio.Subprocess.new(
                     ['notify-send', 
                      'Test Notification', 
-                     `Position: ${positionName}\nMonitor: ${monitorName}`,
+                     `Position: ${positionName}`,
                      '--urgency=normal',
                      '--app-name=Notification Position Plus'],
                     Gio.SubprocessFlags.NONE
