@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.notification-position-plus" path="/org/gnome/shell/extensions/notification-position-plus/">
+    
+    <key name="position" type="s">
+      <default>'top-left'</default>
+      <summary>Notification position</summary>
+      <description>
+        Position of notifications on screen
+      </description>
+      <choices>
+        <choice value='top-left'/>
+        <choice value='top-center'/>
+        <choice value='top-right'/>
+        <choice value='bottom-left'/>
+        <choice value='bottom-center'/>
+        <choice value='bottom-right'/>
+        <choice value='top-stretch'/>
+        <choice value='bottom-stretch'/>
+      </choices>
+    </key>
+    
+    <key name="monitor-index" type="i">
+      <default>0</default>
+      <summary>Monitor to display notifications</summary>
+      <description>
+        Index of the monitor where notifications should appear (0 for primary)
+      </description>
+      <range min="0" max="5"/>
+    </key>
+    
+  </schema>
+</schemalist>
