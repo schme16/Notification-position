@@ -17,41 +17,69 @@
  */
 import Clutter from 'gi://Clutter';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 
-export default class NotificationPosition {
-    constructor() {
-        // Store the original banner alignment
-        this._originalBannerAlignment = Main.messageTray.bannerAlignment;
-    }
-
-    // Move the notification to the left
-    left() {
-        Main.messageTray.bannerAlignment = Clutter.ActorAlign.START;
-    }
-
-    // Move the notification to the right
-    right() {
-        Main.messageTray.bannerAlignment = Clutter.ActorAlign.END;
-    }
-
-    // Center the notification
-    middle() {
-        Main.messageTray.bannerAlignment = Clutter.ActorAlign.CENTER;
-    }
-
-    // Restore the original banner alignment
-    _original() {
-        Main.messageTray.bannerAlignment = this._originalBannerAlignment;
-    }
-
-    // Enable the extension and set the notification position to the left
+export default class NotificationPositionExtension extends Extension {
     enable() {
-        this.left();
+        this._settings = this.getSettings();
+        
+        // Store original values
+        this._originalBannerAlignment = Main.messageTray.bannerAlignment;
+        this._originalBannerY = Main.messageTray._bannerBin.y;
+        this._originalBannerYAlign = Main.messageTray._bannerBin.y_align;
+        
+        // Connect to settings changes
+        this._settingsChangedId = this._settings.connect('changed', () => {
+            this._updatePosition();
+        });
+        
+        // Apply initial position
+        this._updatePosition();
     }
 
-    // Disable the extension and restore the original alignment
     disable() {
-        this._original();
+        // Disconnect settings
+        if (this._settingsChangedId) {
+            this._settings.disconnect(this._settingsChangedId);
+            this._settingsChangedId = null;
+        }
+        
+        // Restore original values
+        Main.messageTray.bannerAlignment = this._originalBannerAlignment;
+        Main.messageTray._bannerBin.y = this._originalBannerY;
+        Main.messageTray._bannerBin.y_align = this._originalBannerYAlign;
+        
+        this._settings = null;
+    }
+
+    _updatePosition() {
+        const horizontalPosition = this._settings.get_string('horizontal-position');
+        const verticalPosition = this._settings.get_string('vertical-position');
+        const monitorIndex = this._settings.get_int('monitor-index');
+        
+        // Set horizontal alignment
+        switch (horizontalPosition) {
+            case 'left':
+                Main.messageTray.bannerAlignment = Clutter.ActorAlign.START;
+                break;
+            case 'center':
+                Main.messageTray.bannerAlignment = Clutter.ActorAlign.CENTER;
+                break;
+            case 'right':
+                Main.messageTray.bannerAlignment = Clutter.ActorAlign.END;
+                break;
+        }
+        
+        // Set vertical position
+        const banner = Main.messageTray._bannerBin;
+        const monitor = Main.layoutManager.monitors[monitorIndex] || Main.layoutManager.primaryMonitor;
+        
+        if (verticalPosition === 'top') {
+            banner.y_align = Clutter.ActorAlign.START;
+            banner.y = monitor.y + 10; // 10px from top
+        } else {
+            banner.y_align = Clutter.ActorAlign.END;
+            banner.y = monitor.y + monitor.height - 10; // 10px from bottom
+        }
     }
 }
-
