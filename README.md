@@ -1,3 +1,5 @@
+# Forked from https://github.com/Ahmed-Sinkeat/Notification-position, Added a config menu, and several more placement options
+-----
 # 🎉 Notification Position GNOME Shell Extension
 
 Welcome to the **Notification Position** GNOME Shell extension! 🚀 This extension moves your notifications from the center of the screen to the top left corner. Perfect for a cleaner workspace or just a touch of customization.

@@ -1,13 +1,13 @@
 {
   "name": "Notification Position",
   "description": "Move notifications to any corner or side of your screen, on any monitor",
-  "uuid": "notification-position@github.com",
+  "uuid": "notification-position@schme16.github.io",
   "shell-version": [
     "45",
     "46"
   ],
   "version": 2,
-  "url": "https://github.com/yourusername/notification-position",
+  "url": "https://github.com/schme16/notification-position",
   "settings-schema": "org.gnome.shell.extensions.notification-position"
 
 }
